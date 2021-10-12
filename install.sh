@@ -1,5 +1,42 @@
 #!/usr/bin/env bash
 
+# Get user info
+function get_user_info()
+{
+    USER=$(whoami)
+    HOME=$(eval echo ~$USER)
+}
+
+# Elevate permission to root
+function elevate_root()
+{
+    if [ "$EUID" -ne 0 ]
+    then   
+        echo -ne "\033[0K\r[sudo] password for $USER: "
+    
+        while IFS= read -p "" -r -s -n 1 char
+        do
+            # Enter - accept password
+            if [[ $char == $'\0' ]]
+            then
+                break
+            fi
+            # Backspace
+            if [[ $char == $'\177' ]]
+            then
+                PROMPT="${PROMPT%?}"
+                PASSWORD="${PASSWORD%?}"
+                echo -ne "\033[0K\r[sudo] password for $USER: $PROMPT"
+            else
+                PROMPT+='*'
+                PASSWORD+="$char"
+                echo -ne "\033[0K\r[sudo] password for $USER: $PROMPT"
+            fi
+        done
+        echo
+    fi
+}
+
 # Identify OS
 function identify_os()
 {
@@ -18,14 +55,21 @@ function identify_os()
 # Install Dependencies
 function install_dependencies()
 {
-    if [ -n "$PACKAGE_MANAGER" ]
+    if [ "$PACKAGE_MANAGER" == "apt-get" ]
     then
-        echo "Set"
+        echo "a"
+    elif [ "$PACKAGE_MANAGER" == "pacman" ]
+    then
+        echo "b"
     else
         echo "Not Set"
     fi
 }
 
+get_user_info
+elevate_root
+echo $PASSWORD
+exit
 identify_os
 install_dependencies
 

@@ -1,39 +1,68 @@
 #!/usr/bin/env bash
 
+# Check if user has sudo access
+function identify_sudo() {
+    local prompt
+
+    prompt=$(sudo -nv 2>&1)
+    if [ $? -eq 0 ]
+    then
+        HAS_SUDO=1
+    elif echo $prompt | grep -q '^sudo:'
+    then
+        HAS_SUDO=1
+    else
+        HAS_SUDO=0
+    fi
+}
+
 # Get user info
-function get_user_info()
+function user_info()
 {
     USER=$(whoami)
     HOME=$(eval echo ~$USER)
 }
 
-# Elevate permission to root
-function elevate_root()
+# Get Password to user or root
+function get_password()
 {
     if [ "$EUID" -ne 0 ]
-    then   
-        echo -ne "\033[0K\r[sudo] password for $USER: "
-    
-        while IFS= read -p "" -r -s -n 1 char
+    then
+        local prompt="[sudo] password for $USER: "
+
+        if [[ $HAS_SUDO == 0 ]]
+        then
+            prompt="[sudo] password for root: "
+        fi
+        
+        local charcount='0'
+        local reply=''
+        while IFS='' read -n '1' -p "${prompt}" -r -s 'char'
         do
-            # Enter - accept password
-            if [[ $char == $'\0' ]]
-            then
+            case "${char}" in
+            # Handles NULL
+            ( $'\000' )
                 break
-            fi
-            # Backspace
-            if [[ $char == $'\177' ]]
-            then
-                PROMPT="${PROMPT%?}"
-                PASSWORD="${PASSWORD%?}"
-                echo -ne "\033[0K\r[sudo] password for $USER: $PROMPT"
-            else
-                PROMPT+='*'
-                PASSWORD+="$char"
-                echo -ne "\033[0K\r[sudo] password for $USER: $PROMPT"
-            fi
+                ;;
+            # Handles BACKSPACE and DELETE
+            ( $'\010' | $'\177' )
+                if (( charcount > 0 )); then
+                prompt=$'\b \b'
+                reply="${reply%?}"
+                (( charcount-- ))
+                else
+                prompt=''
+                fi
+                ;;
+            ( * )
+                prompt='*'
+                reply+="${char}"
+                (( charcount++ ))
+                ;;
+            esac
         done
-        echo
+        PASSWORD=$reply
+        printf '\n' >&2
     fi
 }
 
@@ -57,7 +86,15 @@ function install_dependencies()
 {
     if [ "$PACKAGE_MANAGER" == "apt-get" ]
     then
-        echo "a"
+        if [[ $HAS_SUDO == 0 ]]
+        then
+            
+        elif [[ $HAS_SUDO == 0 ]]
+        then
+
+        else
+
+        fi
     elif [ "$PACKAGE_MANAGER" == "pacman" ]
     then
         echo "b"
@@ -66,11 +103,17 @@ function install_dependencies()
     fi
 }
 
-get_user_info
-elevate_root
-echo $PASSWORD
-exit
+echo -n "Identify user informations......... "
+identify_sudo
+user_info
+sleep 3
+echo "[OK]"
+
+get_password
+
+echo -n "Installing dependencies............ "
 identify_os
 install_dependencies
+echo "[OK]"
 
 echo "My package manager is $PACKAGE_MANAGER"

@@ -89,7 +89,7 @@ function install_dependencies()
         if [[ $HAS_SUDO == 0 ]]
         then
             
-        elif [[ $HAS_SUDO == 0 ]]
+        elif [[ $HAS_SUDO == 1 ]]
         then
 
         else
@@ -97,7 +97,15 @@ function install_dependencies()
         fi
     elif [ "$PACKAGE_MANAGER" == "pacman" ]
     then
-        echo "b"
+        if [[ $HAS_SUDO == 0 ]]
+        then
+            
+        elif [[ $HAS_SUDO == 1 ]]
+        then
+
+        else
+
+        fi
     else
         echo "Not Set"
     fi
